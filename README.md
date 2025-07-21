@@ -30,4 +30,7 @@ This tool is ideal for visualizing and comparing how different CPU scheduling st
 
 <img width="1893" height="949" alt="image" src="https://github.com/user-attachments/assets/b9a6a5b9-07f3-4c2f-9746-94cf43625150" />
 
+<img width="1910" height="958" alt="image" src="https://github.com/user-attachments/assets/cbb5fff8-aa9d-42f2-8853-b62d2638e8e6" />
+
+
 
