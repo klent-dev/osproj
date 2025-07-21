@@ -1,0 +1,1202 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced CPU Scheduler</title>
+    <script src="https://cdn.tailwindcss.com">
+function simulateSRTF(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const remaining = [...processes];
+    const active = [];
+
+    while (remaining.length > 0 || active.length > 0) {
+        while (remaining.length > 0 && remaining[0].arrivalTime <= currentTime) {
+            active.push(remaining.shift());
+        }
+
+        if (active.length === 0) {
+            currentTime = remaining[0].arrivalTime;
+            continue;
+        }
+
+        active.sort((a, b) => a.remainingTime - b.remainingTime);
+        const current = active[0];
+
+        gantt.push({
+            process: current.id,
+            start: currentTime,
+            end: currentTime + 1,
+            color: current.color
+        });
+
+        current.remainingTime--;
+        currentTime++;
+
+        if (current.remainingTime === 0) {
+            current.completionTime = currentTime;
+            current.turnaroundTime = current.completionTime - current.arrivalTime;
+            current.waitTime = current.turnaroundTime - current.burstTime;
+            active.shift();
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function simulateMLFQ(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const queues = [[], [], [], []];
+    const quantum = [2, 4, 6, Infinity];
+    const remaining = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+
+    let i = 0;
+    while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+        queues[0].push(remaining[i]);
+        i++;
+    }
+
+    while (queues.some(q => q.length > 0) || i < remaining.length) {
+        let found = false;
+
+        for (let level = 0; level < 4; level++) {
+            if (queues[level].length > 0) {
+                const current = queues[level].shift();
+                const execTime = Math.min(quantum[level], current.remainingTime);
+
+                gantt.push({
+                    process: current.id,
+                    start: currentTime,
+                    end: currentTime + execTime,
+                    color: current.color
+                });
+
+                current.remainingTime -= execTime;
+                currentTime += execTime;
+
+                while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+                    queues[0].push(remaining[i]);
+                    i++;
+                }
+
+                if (current.remainingTime > 0) {
+                    const nextQueue = Math.min(level + 1, 3);
+                    queues[nextQueue].push(current);
+                } else {
+                    current.completionTime = currentTime;
+                    current.turnaroundTime = current.completionTime - current.arrivalTime;
+                    current.waitTime = current.turnaroundTime - current.burstTime;
+                }
+
+                found = true;
+                break;
+            }
+        }
+
+        if (!found && i < remaining.length) {
+            currentTime = remaining[i].arrivalTime;
+            queues[0].push(remaining[i]);
+            i++;
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function mergeGantt(gantt) {
+    if (gantt.length === 0) return [];
+
+    const merged = [gantt[0]];
+
+    for (let i = 1; i < gantt.length; i++) {
+        const last = merged[merged.length - 1];
+        const current = gantt[i];
+
+        if (last.process === current.process && last.end === current.start) {
+            last.end = current.end;
+        } else {
+            merged.push(current);
+        }
+    }
+
+    return merged;
+}
+
+</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+function simulateSRTF(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const remaining = [...processes];
+    const active = [];
+
+    while (remaining.length > 0 || active.length > 0) {
+        while (remaining.length > 0 && remaining[0].arrivalTime <= currentTime) {
+            active.push(remaining.shift());
+        }
+
+        if (active.length === 0) {
+            currentTime = remaining[0].arrivalTime;
+            continue;
+        }
+
+        active.sort((a, b) => a.remainingTime - b.remainingTime);
+        const current = active[0];
+
+        gantt.push({
+            process: current.id,
+            start: currentTime,
+            end: currentTime + 1,
+            color: current.color
+        });
+
+        current.remainingTime--;
+        currentTime++;
+
+        if (current.remainingTime === 0) {
+            current.completionTime = currentTime;
+            current.turnaroundTime = current.completionTime - current.arrivalTime;
+            current.waitTime = current.turnaroundTime - current.burstTime;
+            active.shift();
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function simulateMLFQ(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const queues = [[], [], [], []];
+    const quantum = [2, 4, 6, Infinity];
+    const remaining = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+
+    let i = 0;
+    while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+        queues[0].push(remaining[i]);
+        i++;
+    }
+
+    while (queues.some(q => q.length > 0) || i < remaining.length) {
+        let found = false;
+
+        for (let level = 0; level < 4; level++) {
+            if (queues[level].length > 0) {
+                const current = queues[level].shift();
+                const execTime = Math.min(quantum[level], current.remainingTime);
+
+                gantt.push({
+                    process: current.id,
+                    start: currentTime,
+                    end: currentTime + execTime,
+                    color: current.color
+                });
+
+                current.remainingTime -= execTime;
+                currentTime += execTime;
+
+                while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+                    queues[0].push(remaining[i]);
+                    i++;
+                }
+
+                if (current.remainingTime > 0) {
+                    const nextQueue = Math.min(level + 1, 3);
+                    queues[nextQueue].push(current);
+                } else {
+                    current.completionTime = currentTime;
+                    current.turnaroundTime = current.completionTime - current.arrivalTime;
+                    current.waitTime = current.turnaroundTime - current.burstTime;
+                }
+
+                found = true;
+                break;
+            }
+        }
+
+        if (!found && i < remaining.length) {
+            currentTime = remaining[i].arrivalTime;
+            queues[0].push(remaining[i]);
+            i++;
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function mergeGantt(gantt) {
+    if (gantt.length === 0) return [];
+
+    const merged = [gantt[0]];
+
+    for (let i = 1; i < gantt.length; i++) {
+        const last = merged[merged.length - 1];
+        const current = gantt[i];
+
+        if (last.process === current.process && last.end === current.start) {
+            last.end = current.end;
+        } else {
+            merged.push(current);
+        }
+    }
+
+    return merged;
+}
+
+</script>
+    <style>
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-in { animation: slideIn 0.5s ease-out; }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        .process-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .process-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .timeline-item { position: relative; }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+            transform: translateX(-50%);
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.mx-auto{margin-left:auto;margin-right:auto}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.ml-3{margin-left:0.75rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-6{margin-top:1.5rem}.block{display:block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-12{height:3rem}.h-16{height:4rem}.h-6{height:1.5rem}.h-4{height:1rem}.max-h-80{max-height:20rem}.max-h-96{max-height:24rem}.min-h-screen{min-height:100vh}.min-h-32{min-height:8rem}.w-10{width:2.5rem}.w-12{width:3rem}.w-16{width:4rem}.w-6{width:1.5rem}.w-full{width:100%}.w-4{width:1rem}.transform{transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-x-3 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.75rem * var(--tw-space-x-reverse));margin-left:calc(0.75rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.overflow-y-auto{overflow-y:auto}.rounded-2xl{border-radius:1rem}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.rounded-full{border-radius:9999px}.border{border-width:1px}.border-gray-600{--tw-border-opacity:1;border-color:rgb(75 85 99 / var(--tw-border-opacity, 1))}.border-gray-700{--tw-border-opacity:1;border-color:rgb(55 65 81 / var(--tw-border-opacity, 1))}.bg-gray-900{--tw-bg-opacity:1;background-color:rgb(17 24 39 / var(--tw-bg-opacity, 1))}.bg-gray-700{--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-opacity-20{--tw-bg-opacity:0.2}.bg-gradient-to-br{background-image:linear-gradient(to bottom right, var(--tw-gradient-stops))}.bg-gradient-to-r{background-image:linear-gradient(to right, var(--tw-gradient-stops))}.from-blue-500{--tw-gradient-from:#3b82f6 var(--tw-gradient-from-position);--tw-gradient-to:rgb(59 130 246 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-blue-600{--tw-gradient-from:#2563eb var(--tw-gradient-from-position);--tw-gradient-to:rgb(37 99 235 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-green-500{--tw-gradient-from:#22c55e var(--tw-gradient-from-position);--tw-gradient-to:rgb(34 197 94 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-orange-500{--tw-gradient-from:#f97316 var(--tw-gradient-from-position);--tw-gradient-to:rgb(249 115 22 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-purple-500{--tw-gradient-from:#a855f7 var(--tw-gradient-from-position);--tw-gradient-to:rgb(168 85 247 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-red-500{--tw-gradient-from:#ef4444 var(--tw-gradient-from-position);--tw-gradient-to:rgb(239 68 68 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-yellow-500{--tw-gradient-from:#eab308 var(--tw-gradient-from-position);--tw-gradient-to:rgb(234 179 8 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-blue-400{--tw-gradient-from:#60a5fa var(--tw-gradient-from-position);--tw-gradient-to:rgb(96 165 250 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-green-400{--tw-gradient-from:#4ade80 var(--tw-gradient-from-position);--tw-gradient-to:rgb(74 222 128 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-red-400{--tw-gradient-from:#f87171 var(--tw-gradient-from-position);--tw-gradient-to:rgb(248 113 113 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-yellow-400{--tw-gradient-from:#facc15 var(--tw-gradient-from-position);--tw-gradient-to:rgb(250 204 21 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-blue-500{--tw-gradient-to:#3b82f6 var(--tw-gradient-to-position)}.to-blue-600{--tw-gradient-to:#2563eb var(--tw-gradient-to-position)}.to-emerald-500{--tw-gradient-to:#10b981 var(--tw-gradient-to-position)}.to-green-600{--tw-gradient-to:#16a34a var(--tw-gradient-to-position)}.to-orange-500{--tw-gradient-to:#f97316 var(--tw-gradient-to-position)}.to-orange-600{--tw-gradient-to:#ea580c var(--tw-gradient-to-position)}.to-pink-500{--tw-gradient-to:#ec4899 var(--tw-gradient-to-position)}.to-purple-500{--tw-gradient-to:#a855f7 var(--tw-gradient-to-position)}.to-purple-600{--tw-gradient-to:#9333ea var(--tw-gradient-to-position)}.to-green-500{--tw-gradient-to:#22c55e var(--tw-gradient-to-position)}.to-red-500{--tw-gradient-to:#ef4444 var(--tw-gradient-to-position)}.to-yellow-500{--tw-gradient-to:#eab308 var(--tw-gradient-to-position)}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-2{padding:0.5rem}.px-4{padding-left:1rem;padding-right:1rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-8{padding-top:2rem;padding-bottom:2rem}.text-center{text-align:center}.text-right{text-align:right}.text-2xl{font-size:1.5rem;line-height:2rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-blue-100{--tw-text-opacity:1;color:rgb(219 234 254 / var(--tw-text-opacity, 1))}.text-blue-400{--tw-text-opacity:1;color:rgb(96 165 250 / var(--tw-text-opacity, 1))}.text-blue-500{--tw-text-opacity:1;color:rgb(59 130 246 / var(--tw-text-opacity, 1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-gray-300{--tw-text-opacity:1;color:rgb(209 213 219 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.opacity-80{opacity:0.8}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-xl{--tw-shadow:0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-200{transition-duration:200ms}.hover\:scale-105:hover{--tw-scale-x:1.05;--tw-scale-y:1.05;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.hover\:bg-gray-600:hover{--tw-bg-opacity:1;background-color:rgb(75 85 99 / var(--tw-bg-opacity, 1))}.hover\:bg-opacity-30:hover{--tw-bg-opacity:0.3}.hover\:from-blue-600:hover{--tw-gradient-from:#2563eb var(--tw-gradient-from-position);--tw-gradient-to:rgb(37 99 235 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.hover\:from-green-600:hover{--tw-gradient-from:#16a34a var(--tw-gradient-from-position);--tw-gradient-to:rgb(22 163 74 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.hover\:from-red-600:hover{--tw-gradient-from:#dc2626 var(--tw-gradient-from-position);--tw-gradient-to:rgb(220 38 38 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.hover\:from-yellow-600:hover{--tw-gradient-from:#ca8a04 var(--tw-gradient-from-position);--tw-gradient-to:rgb(202 138 4 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.hover\:to-blue-600:hover{--tw-gradient-to:#2563eb var(--tw-gradient-to-position)}.hover\:to-emerald-600:hover{--tw-gradient-to:#059669 var(--tw-gradient-to-position)}.hover\:to-orange-600:hover{--tw-gradient-to:#ea580c var(--tw-gradient-to-position)}.hover\:to-pink-600:hover{--tw-gradient-to:#db2777 var(--tw-gradient-to-position)}.hover\:to-purple-600:hover{--tw-gradient-to:#9333ea var(--tw-gradient-to-position)}.focus\:border-transparent:focus{border-color:transparent}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-blue-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(59 130 246 / var(--tw-ring-opacity, 1))}@media (min-width: 768px){.md\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}@media (min-width: 1024px){.lg\:col-span-1{grid-column:span 1 / span 1}.lg\:col-span-2{grid-column:span 2 / span 2}.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.lg\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style></head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 shadow-2xl">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">CPU Scheduler Pro</h1>
+                        <p class="text-blue-100 text-sm">Advanced Process Scheduling Simulator</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <div class="text-sm text-blue-100">Active Processes</div>
+                        <div class="text-xl font-bold" id="processCount">4</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-8">
+        <!-- Configuration Panel -->
+        <div class="grid lg:grid-cols-4 gap-6 mb-8">
+            <div class="lg:col-span-1">
+                <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
+                    <h2 class="text-xl font-bold mb-6 text-center">Scheduler Config</h2>
+                    
+                    <!-- Algorithm Selection -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-300 mb-3">Algorithm</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors">
+                                <input type="radio" name="algorithm" value="fcfs" checked="" class="text-blue-500">
+                                <span class="ml-3">First Come First Serve</span>
+                            </label>
+                            <label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors">
+                                <input type="radio" name="algorithm" value="sjf" class="text-blue-500">
+                                <span class="ml-3">Shortest Job First</span>
+                            </label>
+                            <label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors">
+                                <input type="radio" name="algorithm" value="rr" class="text-blue-500">
+                                <span class="ml-3">Round Robin</span>
+                            </label>
+<label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors">
+    <input type="radio" name="algorithm" value="srtf" class="text-blue-500">
+    <span class="ml-3">Shortest Remaining Time First</span>
+</label>
+<label class="flex items-center p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors">
+    <input type="radio" name="algorithm" value="mlfq" class="text-blue-500">
+    <span class="ml-3">Multilevel Feedback Queue</span>
+</label>
+
+                           
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Time Quantum -->
+                    <div id="quantumSection" class="mb-6 hidden">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Time Quantum</label>
+                        <input type="range" id="quantumSlider" min="1" max="10" value="3" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>1</span>
+                            <span id="quantumValue" class="font-bold text-blue-400">3</span>
+                            <span>10</span>
+                        </div>
+                    </div>
+
+                    <!-- Quick Add Processes -->
+                    <div class="space-y-3">
+                        <button onclick="addRandomProcess()" class="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200 transform hover:scale-105">
+                            + Add Random Process
+                        </button>
+                        <button onclick="addSampleProcesses()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200 transform hover:scale-105">
+                            Load Sample Data
+                        </button>
+                        <button onclick="clearAll()" class="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-medium py-3 px-4 rounded-lg transition duration-200 transform hover:scale-105">
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Process Input -->
+            <div class="lg:col-span-1">
+                <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
+                    <h2 class="text-xl font-bold mb-6 text-center">Add Process</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Process ID</label>
+                            <input type="text" id="processId" placeholder="P1" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Arrival Time</label>
+                            <input type="number" id="arrivalTime" value="0" min="0" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Burst Time</label>
+                            <input type="number" id="burstTime" value="1" min="1" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white">
+                        </div>
+                        
+                        <div id="prioritySection" class="hidden">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Priority (1-10)</label>
+                            <input type="number" id="priority" value="5" min="1" max="10" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white">
+                        </div>
+                        
+                        <button onclick="addProcess()" class="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 transform hover:scale-105">
+                            Add Process
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Process List -->
+            <div class="lg:col-span-2">
+                <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold">Process Queue</h2>
+                        <button onclick="runSimulation()" id="runBtn" class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-bold py-2 px-6 rounded-lg transition duration-200 transform hover:scale-105">
+                            ▶ Run Simulation
+                        </button>
+                    </div>
+                    
+                    <div id="processList" class="space-y-3 max-h-80 overflow-y-auto">
+                <div class="process-card bg-gradient-to-r from-red-400 to-red-500 rounded-lg p-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center font-bold">
+                                P1
+                            </div>
+                            <div>
+                                <div class="font-semibold">P1</div>
+                                <div class="text-sm opacity-80">Arrival: 0 | Burst: 6 | Priority: 3</div>
+                            </div>
+                        </div>
+                        <button onclick="removeProcess(0)" class="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            
+                <div class="process-card bg-gradient-to-r from-blue-400 to-blue-500 rounded-lg p-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center font-bold">
+                                P2
+                            </div>
+                            <div>
+                                <div class="font-semibold">P2</div>
+                                <div class="text-sm opacity-80">Arrival: 1 | Burst: 4 | Priority: 1</div>
+                            </div>
+                        </div>
+                        <button onclick="removeProcess(1)" class="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            
+                <div class="process-card bg-gradient-to-r from-green-400 to-green-500 rounded-lg p-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center font-bold">
+                                P3
+                            </div>
+                            <div>
+                                <div class="font-semibold">P3</div>
+                                <div class="text-sm opacity-80">Arrival: 2 | Burst: 2 | Priority: 4</div>
+                            </div>
+                        </div>
+                        <button onclick="removeProcess(2)" class="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            
+                <div class="process-card bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg p-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center font-bold">
+                                P4
+                            </div>
+                            <div>
+                                <div class="font-semibold">P4</div>
+                                <div class="text-sm opacity-80">Arrival: 3 | Burst: 8 | Priority: 2</div>
+                            </div>
+                        </div>
+                        <button onclick="removeProcess(3)" class="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Dashboard -->
+        <div class="grid lg:grid-cols-3 gap-6">
+            <!-- Gantt Chart -->
+            <div class="lg:col-span-2">
+                <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
+                    <h2 class="text-xl font-bold mb-6">Execution Timeline</h2>
+                    <div id="ganttContainer" class="bg-gray-900 rounded-lg p-4 min-h-32">
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 102 0V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 2a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
+                    </svg>
+                    <p>Run simulation to see timeline</p>
+                </div>
+            </div>
+                    <div id="timeLabels" class="flex justify-between mt-2 text-xs text-gray-400"></div>
+                </div>
+
+                <!-- Performance Metrics -->
+                <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700 mt-6">
+                    <h2 class="text-xl font-bold mb-6">Performance Analysis</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-bold" id="avgWait">0</div>
+                            <div class="text-sm opacity-80">Avg Wait Time</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-bold" id="avgTurnaround">0</div>
+                            <div class="text-sm opacity-80">Avg Turnaround</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-bold" id="cpuUtilization">0%</div>
+                            <div class="text-sm opacity-80">CPU Utilization</div>
+                        </div>
+                        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-center">
+                            <div class="text-2xl font-bold" id="throughput">0</div>
+                            <div class="text-sm opacity-80">Throughput</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Results -->
+            <div class="lg:col-span-1">
+                <div class="bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-700">
+                    <h2 class="text-xl font-bold mb-6">Process Details</h2>
+                    <div id="processDetails" class="space-y-3 max-h-96 overflow-y-auto">
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"></path>
+                    </svg>
+                    <p>Process statistics will appear here</p>
+                </div>
+            </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let processes = [];
+        let processCounter = 1;
+        const colors = [
+            'from-red-400 to-red-500',
+            'from-blue-400 to-blue-500', 
+            'from-green-400 to-green-500',
+            'from-yellow-400 to-yellow-500',
+            'from-purple-400 to-purple-500',
+            'from-pink-400 to-pink-500',
+            'from-indigo-400 to-indigo-500',
+            'from-teal-400 to-teal-500'
+        ];
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Algorithm change handler
+            document.querySelectorAll('input[name="algorithm"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const quantumSection = document.getElementById('quantumSection');
+                    const prioritySection = document.getElementById('prioritySection');
+                    
+                    quantumSection.classList.toggle('hidden', this.value !== 'rr');
+                    prioritySection.classList.toggle('hidden', this.value !== 'priority');
+                });
+            });
+
+            // Quantum slider
+            document.getElementById('quantumSlider').addEventListener('input', function() {
+                document.getElementById('quantumValue').textContent = this.value;
+            });
+
+            // Load sample data on start
+            addSampleProcesses();
+        });
+
+        function addProcess() {
+            const id = document.getElementById('processId').value || `P${processCounter}`;
+            const arrival = parseInt(document.getElementById('arrivalTime').value) || 0;
+            const burst = parseInt(document.getElementById('burstTime').value) || 1;
+            const priority = parseInt(document.getElementById('priority').value) || 5;
+
+            const process = {
+                id: id,
+                arrivalTime: arrival,
+                burstTime: burst,
+                priority: priority,
+                remainingTime: burst,
+                waitTime: 0,
+                turnaroundTime: 0,
+                completionTime: 0,
+                color: colors[(processCounter - 1) % colors.length]
+            };
+
+            processes.push(process);
+            processCounter++;
+            updateProcessList();
+            clearInputs();
+        }
+
+        function addRandomProcess() {
+            const id = `P${processCounter}`;
+            const arrival = Math.floor(Math.random() * 10);
+            const burst = Math.floor(Math.random() * 8) + 1;
+            const priority = Math.floor(Math.random() * 10) + 1;
+
+            const process = {
+                id: id,
+                arrivalTime: arrival,
+                burstTime: burst,
+                priority: priority,
+                remainingTime: burst,
+                waitTime: 0,
+                turnaroundTime: 0,
+                completionTime: 0,
+                color: colors[(processCounter - 1) % colors.length]
+            };
+
+            processes.push(process);
+            processCounter++;
+            updateProcessList();
+        }
+
+        function addSampleProcesses() {
+            clearAll();
+            const samples = [
+                {id: 'P1', arrivalTime: 0, burstTime: 6, priority: 3},
+                {id: 'P2', arrivalTime: 1, burstTime: 4, priority: 1},
+                {id: 'P3', arrivalTime: 2, burstTime: 2, priority: 4},
+                {id: 'P4', arrivalTime: 3, burstTime: 8, priority: 2}
+            ];
+
+            samples.forEach((sample, index) => {
+                const process = {
+                    ...sample,
+                    remainingTime: sample.burstTime,
+                    waitTime: 0,
+                    turnaroundTime: 0,
+                    completionTime: 0,
+                    color: colors[index % colors.length]
+                };
+                processes.push(process);
+            });
+
+            processCounter = samples.length + 1;
+            updateProcessList();
+        }
+
+        function clearAll() {
+            processes = [];
+            processCounter = 1;
+            updateProcessList();
+            clearResults();
+        }
+
+        function clearInputs() {
+            document.getElementById('processId').value = '';
+            document.getElementById('arrivalTime').value = '0';
+            document.getElementById('burstTime').value = '1';
+            document.getElementById('priority').value = '5';
+        }
+
+        function updateProcessList() {
+            const list = document.getElementById('processList');
+            document.getElementById('processCount').textContent = processes.length;
+
+            if (processes.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>No processes added yet</p>
+                        <p class="text-sm">Add some processes to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = processes.map((p, index) => `
+                <div class="process-card bg-gradient-to-r ${p.color} rounded-lg p-4 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center font-bold">
+                                ${p.id}
+                            </div>
+                            <div>
+                                <div class="font-semibold">${p.id}</div>
+                                <div class="text-sm opacity-80">Arrival: ${p.arrivalTime} | Burst: ${p.burstTime} | Priority: ${p.priority}</div>
+                            </div>
+                        </div>
+                        <button onclick="removeProcess(${index})" class="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function removeProcess(index) {
+            processes.splice(index, 1);
+            updateProcessList();
+        }
+
+        function runSimulation() {
+            if (processes.length === 0) {
+                alert('Please add at least one process');
+                return;
+            }
+
+            const algorithm = document.querySelector('input[name="algorithm"]:checked').value;
+            const quantum = parseInt(document.getElementById('quantumSlider').value);
+
+            let ganttChart = [];
+            let processQueue = JSON.parse(JSON.stringify(processes)); // Deep copy
+
+            switch (algorithm) {
+                case 'fcfs':
+                    ganttChart = simulateFCFS(processQueue);
+                    break;
+                case 'sjf':
+                    ganttChart = simulateSJF(processQueue);
+                    break;
+                case 'rr':
+                    ganttChart = simulateRR(processQueue, quantum);
+                    break;
+                case 'srtf':
+                    ganttChart = simulateSRTF(processQueue);
+                    break;
+                case 'mlfq':
+                    ganttChart = simulateMLFQ(processQueue);
+                    break;
+                    ganttChart = simulateRR(processQueue, quantum);
+                    break;
+                case 'priority':
+                    ganttChart = simulatePriority(processQueue);
+                    break;
+            }
+
+            displayResults(ganttChart, processQueue);
+        }
+
+        function simulateFCFS(processes) {
+            const gantt = [];
+            let currentTime = 0;
+            const sorted = processes.sort((a, b) => a.arrivalTime - b.arrivalTime);
+
+            for (const process of sorted) {
+                if (currentTime < process.arrivalTime) {
+                    currentTime = process.arrivalTime;
+                }
+
+                gantt.push({
+                    process: process.id,
+                    start: currentTime,
+                    end: currentTime + process.burstTime,
+                    color: process.color
+                });
+
+                process.completionTime = currentTime + process.burstTime;
+                process.turnaroundTime = process.completionTime - process.arrivalTime;
+                process.waitTime = process.turnaroundTime - process.burstTime;
+                currentTime += process.burstTime;
+            }
+
+            return gantt;
+        }
+
+        function simulateSJF(processes) {
+            const gantt = [];
+            let currentTime = 0;
+            const remaining = [...processes];
+
+            while (remaining.length > 0) {
+                const available = remaining.filter(p => p.arrivalTime <= currentTime);
+                
+                if (available.length === 0) {
+                    currentTime = Math.min(...remaining.map(p => p.arrivalTime));
+                    continue;
+                }
+
+                const shortest = available.reduce((min, p) => p.burstTime < min.burstTime ? p : min);
+                
+                gantt.push({
+                    process: shortest.id,
+                    start: currentTime,
+                    end: currentTime + shortest.burstTime,
+                    color: shortest.color
+                });
+
+                shortest.completionTime = currentTime + shortest.burstTime;
+                shortest.turnaroundTime = shortest.completionTime - shortest.arrivalTime;
+                shortest.waitTime = shortest.turnaroundTime - shortest.burstTime;
+                
+                currentTime += shortest.burstTime;
+                remaining.splice(remaining.indexOf(shortest), 1);
+            }
+
+            return gantt;
+        }
+
+        function simulateRR(processes, quantum) {
+            const gantt = [];
+            let currentTime = 0;
+            const queue = [];
+            const remaining = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+            let i = 0;
+
+            while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+                queue.push(remaining[i]);
+                i++;
+            }
+
+            while (queue.length > 0 || i < remaining.length) {
+                if (queue.length === 0) {
+                    currentTime = remaining[i].arrivalTime;
+                    queue.push(remaining[i]);
+                    i++;
+                }
+
+                const current = queue.shift();
+                const executeTime = Math.min(quantum, current.remainingTime);
+
+                gantt.push({
+                    process: current.id,
+                    start: currentTime,
+                    end: currentTime + executeTime,
+                    color: current.color
+                });
+
+                currentTime += executeTime;
+                current.remainingTime -= executeTime;
+
+                while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+                    queue.push(remaining[i]);
+                    i++;
+                }
+
+                if (current.remainingTime > 0) {
+                    queue.push(current);
+                } else {
+                    current.completionTime = currentTime;
+                    current.turnaroundTime = current.completionTime - current.arrivalTime;
+                    current.waitTime = current.turnaroundTime - current.burstTime;
+                }
+            }
+
+            return gantt;
+        }
+
+       
+                highest.completionTime = currentTime + highest.burstTime;
+                highest.turnaroundTime = highest.completionTime - highest.arrivalTime;
+                highest.waitTime = highest.turnaroundTime - highest.burstTime;
+                
+                currentTime += highest.burstTime;
+                remaining.splice(remaining.indexOf(highest), 1);
+            }
+
+            return gantt;
+        }
+
+        function displayResults(gantt, processes) {
+            displayGanttChart(gantt);
+            displayMetrics(processes, gantt);
+            displayProcessDetails(processes);
+        }
+
+        function displayGanttChart(gantt) {
+            const container = document.getElementById('ganttContainer');
+            const timeLabels = document.getElementById('timeLabels');
+
+            if (gantt.length === 0) return;
+
+            const totalTime = Math.max(...gantt.map(g => g.end));
+            const maxWidth = container.clientWidth - 32; // Account for padding
+            const scale = maxWidth / totalTime;
+
+            container.innerHTML = `
+                <div class="flex items-center h-16 bg-gray-800 rounded-lg overflow-hidden">
+                    ${gantt.map(g => `
+                        <div class="bg-gradient-to-r ${g.color} h-full flex items-center justify-center text-white font-bold text-sm border-r border-gray-700 slide-in"
+                             style="width: ${(g.end - g.start) * scale}px;">
+                            ${g.process}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Time labels
+            const timePoints = [...new Set(gantt.flatMap(g => [g.start, g.end]))].sort((a, b) => a - b);
+            timeLabels.innerHTML = timePoints.map(t => `
+                <span>${t}</span>
+            `).join('');
+        }
+
+        function displayMetrics(processes, gantt) {
+            const totalWait = processes.reduce((sum, p) => sum + p.waitTime, 0);
+            const totalTurnaround = processes.reduce((sum, p) => sum + p.turnaroundTime, 0);
+            const totalTime = Math.max(...gantt.map(g => g.end));
+            const totalBurst = processes.reduce((sum, p) => sum + p.burstTime, 0);
+
+            document.getElementById('avgWait').textContent = (totalWait / processes.length).toFixed(1);
+            document.getElementById('avgTurnaround').textContent = (totalTurnaround / processes.length).toFixed(1);
+            document.getElementById('cpuUtilization').textContent = ((totalBurst / totalTime) * 100).toFixed(1) + '%';
+            document.getElementById('throughput').textContent = (processes.length / totalTime).toFixed(2);
+        }
+
+        function displayProcessDetails(processes) {
+            const container = document.getElementById('processDetails');
+            
+            container.innerHTML = processes.map(p => `
+                <div class="bg-gradient-to-r ${p.color} bg-opacity-20 rounded-lg p-4 border border-gray-600 fade-in">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-lg">${p.id}</span>
+                        <span class="text-sm opacity-75">Completed</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>Wait: <span class="font-bold">${p.waitTime}</span></div>
+                        <div>Turnaround: <span class="font-bold">${p.turnaroundTime}</span></div>
+                        <div>Arrival: <span class="font-bold">${p.arrivalTime}</span></div>
+                        <div>Burst: <span class="font-bold">${p.burstTime}</span></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function clearResults() {
+            document.getElementById('ganttContainer').innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 102 0V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 2a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+                    </svg>
+                    <p>Run simulation to see timeline</p>
+                </div>
+            `;
+            
+            document.getElementById('timeLabels').innerHTML = '';
+            document.getElementById('processDetails').innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clip-rule="evenodd"/>
+                    </svg>
+                    <p>Process statistics will appear here</p>
+                </div>
+            `;
+            
+            ['avgWait', 'avgTurnaround', 'cpuUtilization', 'throughput'].forEach(id => {
+                document.getElementById(id).textContent = id === 'cpuUtilization' ? '0%' : '0';
+            });
+        }
+    
+function simulateSRTF(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const remaining = [...processes];
+    const active = [];
+
+    while (remaining.length > 0 || active.length > 0) {
+        while (remaining.length > 0 && remaining[0].arrivalTime <= currentTime) {
+            active.push(remaining.shift());
+        }
+
+        if (active.length === 0) {
+            currentTime = remaining[0].arrivalTime;
+            continue;
+        }
+
+        active.sort((a, b) => a.remainingTime - b.remainingTime);
+        const current = active[0];
+
+        gantt.push({
+            process: current.id,
+            start: currentTime,
+            end: currentTime + 1,
+            color: current.color
+        });
+
+        current.remainingTime--;
+        currentTime++;
+
+        if (current.remainingTime === 0) {
+            current.completionTime = currentTime;
+            current.turnaroundTime = current.completionTime - current.arrivalTime;
+            current.waitTime = current.turnaroundTime - current.burstTime;
+            active.shift();
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function simulateMLFQ(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const queues = [[], [], [], []];
+    const quantum = [2, 4, 6, Infinity];
+    const remaining = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+
+    let i = 0;
+    while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+        queues[0].push(remaining[i]);
+        i++;
+    }
+
+    while (queues.some(q => q.length > 0) || i < remaining.length) {
+        let found = false;
+
+        for (let level = 0; level < 4; level++) {
+            if (queues[level].length > 0) {
+                const current = queues[level].shift();
+                const execTime = Math.min(quantum[level], current.remainingTime);
+
+                gantt.push({
+                    process: current.id,
+                    start: currentTime,
+                    end: currentTime + execTime,
+                    color: current.color
+                });
+
+                current.remainingTime -= execTime;
+                currentTime += execTime;
+
+                while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+                    queues[0].push(remaining[i]);
+                    i++;
+                }
+
+                if (current.remainingTime > 0) {
+                    const nextQueue = Math.min(level + 1, 3);
+                    queues[nextQueue].push(current);
+                } else {
+                    current.completionTime = currentTime;
+                    current.turnaroundTime = current.completionTime - current.arrivalTime;
+                    current.waitTime = current.turnaroundTime - current.burstTime;
+                }
+
+                found = true;
+                break;
+            }
+        }
+
+        if (!found && i < remaining.length) {
+            currentTime = remaining[i].arrivalTime;
+            queues[0].push(remaining[i]);
+            i++;
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function mergeGantt(gantt) {
+    if (gantt.length === 0) return [];
+
+    const merged = [gantt[0]];
+
+    for (let i = 1; i < gantt.length; i++) {
+        const last = merged[merged.length - 1];
+        const current = gantt[i];
+
+        if (last.process === current.process && last.end === current.start) {
+            last.end = current.end;
+        } else {
+            merged.push(current);
+        }
+    }
+
+    return merged;
+}
+
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'95eecbea62638539',t:'MTc1MjQ3Mjc5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();
+function simulateSRTF(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const remaining = [...processes];
+    const active = [];
+
+    while (remaining.length > 0 || active.length > 0) {
+        while (remaining.length > 0 && remaining[0].arrivalTime <= currentTime) {
+            active.push(remaining.shift());
+        }
+
+        if (active.length === 0) {
+            currentTime = remaining[0].arrivalTime;
+            continue;
+        }
+
+        active.sort((a, b) => a.remainingTime - b.remainingTime);
+        const current = active[0];
+
+        gantt.push({
+            process: current.id,
+            start: currentTime,
+            end: currentTime + 1,
+            color: current.color
+        });
+
+        current.remainingTime--;
+        currentTime++;
+
+        if (current.remainingTime === 0) {
+            current.completionTime = currentTime;
+            current.turnaroundTime = current.completionTime - current.arrivalTime;
+            current.waitTime = current.turnaroundTime - current.burstTime;
+            active.shift();
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function simulateMLFQ(processes) {
+    const gantt = [];
+    let currentTime = 0;
+    const queues = [[], [], [], []];
+    const quantum = [2, 4, 6, Infinity];
+    const remaining = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+
+    let i = 0;
+    while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+        queues[0].push(remaining[i]);
+        i++;
+    }
+
+    while (queues.some(q => q.length > 0) || i < remaining.length) {
+        let found = false;
+
+        for (let level = 0; level < 4; level++) {
+            if (queues[level].length > 0) {
+                const current = queues[level].shift();
+                const execTime = Math.min(quantum[level], current.remainingTime);
+
+                gantt.push({
+                    process: current.id,
+                    start: currentTime,
+                    end: currentTime + execTime,
+                    color: current.color
+                });
+
+                current.remainingTime -= execTime;
+                currentTime += execTime;
+
+                while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+                    queues[0].push(remaining[i]);
+                    i++;
+                }
+
+                if (current.remainingTime > 0) {
+                    const nextQueue = Math.min(level + 1, 3);
+                    queues[nextQueue].push(current);
+                } else {
+                    current.completionTime = currentTime;
+                    current.turnaroundTime = current.completionTime - current.arrivalTime;
+                    current.waitTime = current.turnaroundTime - current.burstTime;
+                }
+
+                found = true;
+                break;
+            }
+        }
+
+        if (!found && i < remaining.length) {
+            currentTime = remaining[i].arrivalTime;
+            queues[0].push(remaining[i]);
+            i++;
+        }
+    }
+
+    return mergeGantt(gantt);
+}
+
+function mergeGantt(gantt) {
+    if (gantt.length === 0) return [];
+
+    const merged = [gantt[0]];
+
+    for (let i = 1; i < gantt.length; i++) {
+        const last = merged[merged.length - 1];
+        const current = gantt[i];
+
+        if (last.process === current.process && last.end === current.start) {
+            last.end = current.end;
+        } else {
+            merged.push(current);
+        }
+    }
+
+    return merged;
+}
+
+</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;"></iframe>
+
+</body></html>
