@@ -556,9 +556,9 @@ function mergeGantt(gantt) {
             'from-teal-400 to-teal-500'
         ];
 
-        // Event listeners
+       
         document.addEventListener('DOMContentLoaded', function() {
-            // Algorithm change handler
+            
             document.querySelectorAll('input[name="algorithm"]').forEach(radio => {
                 radio.addEventListener('change', function() {
                     const quantumSection = document.getElementById('quantumSection');
@@ -569,12 +569,12 @@ function mergeGantt(gantt) {
                 });
             });
 
-            // Quantum slider
+           
             document.getElementById('quantumSlider').addEventListener('input', function() {
                 document.getElementById('quantumValue').textContent = this.value;
             });
 
-            // Load sample data on start
+         
             addSampleProcesses();
         });
 
