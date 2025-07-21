@@ -802,53 +802,68 @@ function mergeGantt(gantt) {
         }
 
         function simulateRR(processes, quantum) {
-            const gantt = [];
-            let currentTime = 0;
-            const queue = [];
-            const remaining = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
-            let i = 0;
+    const gantt = [];
+    let currentTime = 0;
+    const queue = [];
+    const remaining = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
+    let i = 0;
 
-            while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
-                queue.push(remaining[i]);
-                i++;
-            }
+    // Initialize remainingTime
+    processes.forEach(p => {
+        if (p.remainingTime === undefined)
+            p.remainingTime = p.burstTime;
+    });
 
-            while (queue.length > 0 || i < remaining.length) {
-                if (queue.length === 0) {
-                    currentTime = remaining[i].arrivalTime;
-                    queue.push(remaining[i]);
-                    i++;
-                }
+    while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+        queue.push(remaining[i]);
+        i++;
+    }
 
-                const current = queue.shift();
-                const executeTime = Math.min(quantum, current.remainingTime);
-
-                gantt.push({
-                    process: current.id,
-                    start: currentTime,
-                    end: currentTime + executeTime,
-                    color: current.color
-                });
-
-                currentTime += executeTime;
-                current.remainingTime -= executeTime;
-
-                while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
-                    queue.push(remaining[i]);
-                    i++;
-                }
-
-                if (current.remainingTime > 0) {
-                    queue.push(current);
-                } else {
-                    current.completionTime = currentTime;
-                    current.turnaroundTime = current.completionTime - current.arrivalTime;
-                    current.waitTime = current.turnaroundTime - current.burstTime;
-                }
-            }
-
-            return gantt;
+    while (queue.length > 0 || i < remaining.length) {
+        if (queue.length === 0) {
+            // CPU is idle
+            const idleStart = currentTime;
+            currentTime = remaining[i].arrivalTime;
+            gantt.push({
+                process: "IDLE",
+                start: idleStart,
+                end: currentTime,
+                color: "#ccc"
+            });
+            queue.push(remaining[i]);
+            i++;
         }
+
+        const current = queue.shift();
+        const executeTime = Math.min(quantum, current.remainingTime);
+
+        gantt.push({
+            process: current.id,
+            start: currentTime,
+            end: currentTime + executeTime,
+            color: current.color
+        });
+
+        currentTime += executeTime;
+        current.remainingTime -= executeTime;
+
+        // Enqueue newly arrived processes during execution
+        while (i < remaining.length && remaining[i].arrivalTime <= currentTime) {
+            queue.push(remaining[i]);
+            i++;
+        }
+
+        if (current.remainingTime > 0) {
+            queue.push(current);
+        } else {
+            current.completionTime = currentTime;
+            current.turnaroundTime = current.completionTime - current.arrivalTime;
+            current.waitTime = current.turnaroundTime - current.burstTime;
+        }
+    }
+
+    return gantt;
+}
 
         function simulatePriority(processes) {
             const gantt = [];
