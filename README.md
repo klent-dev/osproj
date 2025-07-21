@@ -17,3 +17,14 @@ Shortest Remaining Time First (SRTF) – a preemptive version of SJF that picks 
 Round Robin (RR) – processes are executed in fixed time slices using a cyclic queue.
 
 Multi-Level Feedback Queue (MLFQ) – processes are moved across different queues based on their behavior and time quantum.
+
+After selecting your desired algorithm, click the “Run” button. The simulation will process the data and display the results in two main parts:
+
+A Gantt Chart showing the execution timeline of each process.
+
+A table of performance metrics, including waiting time, turnaround time, and completion time for each process.
+
+This tool is ideal for visualizing and comparing how different CPU scheduling strategies behave in real time.
+
+<img width="1908" height="959" alt="image" src="https://github.com/user-attachments/assets/bd06db05-6c07-4ff6-9b51-b8592d1d9af6" />
+
